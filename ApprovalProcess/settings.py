@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'CustomApp',
     'Reimburse',
+    'rest_framework',
 ]
 
 MIDDLEWARE_CLASSES = [
@@ -53,11 +54,11 @@ MIDDLEWARE_CLASSES = [
 ]
 
 ROOT_URLCONF = 'ApprovalProcess.urls'
-
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'CustomApp/'), ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -76,12 +77,17 @@ WSGI_APPLICATION = 'ApprovalProcess.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.9/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "framework",
+        "USER": "root",
+        "PASSWORD": "root",
+        "HOST": "localhost",
+        "PORT": "3306",
+        },
     }
-}
 
 
 # Password validation
