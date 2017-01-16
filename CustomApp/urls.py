@@ -1,9 +1,8 @@
 from __future__ import unicode_literals
 from django.conf.urls import url
-from views import StartProcess, process, ProcessListView, ProcessUpdate
-from django.db import models
+from views import StartProcess, process, ProcessListView, ProcessUpdate, ApproveListView
 
-# Create your models here.
+
 urlpatterns = [
     url(r'^$', process, name='taskprocess'),
     url(
@@ -20,6 +19,11 @@ urlpatterns = [
         r'^(?P<app_name>\w+)/update/(?P<pk>\d+|None)/$',
         ProcessUpdate.as_view(),
         name="update"
+    ),
+    url(
+        r'^(?P<app_name>\w+)/approve/$',
+        ApproveListView.as_view(),
+        name="approve"
     )
 
 ]

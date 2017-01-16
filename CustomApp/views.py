@@ -11,20 +11,22 @@ from django.shortcuts import get_object_or_404
 from rest_framework.renderers import TemplateHTMLRenderer
 
 
-from models import get_app_detail
+from models import get_app_detail, get_queryset
 
 
 def process(request):
     return render(request, 'templates/landingpage.html', {'taskprocess': WORKFLOW_APPS})
 
 
-class ProcessListView(generics.ListAPIView):
+class ProcessListView(generics.ListAPIView, LoginRequiredMixin):
 
     def list(self, request, **kwargs):
         config = get_app_detail(request, **kwargs)
         model = config.PROCESS[config.INITIAL]['model']
         serializer = config.PROCESS[config.INITIAL]['serializer']
-        self.queryset = queryset = model.objects.filter(is_active=True)
+        self.queryset = queryset = model.objects.filter(is_active=True).exclude(process_status='Completed',
+                                                                                request_status__in=['Completed',
+                                                                                                    'Rolled Back'])
         serializer = serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -39,12 +41,11 @@ class StartProcess(APIView):
         return Response({'serializer': serializer()})
 
     def post(self, request, **kwargs):
-        import ipdb; ipdb.set_trace()
         config = get_app_detail(request, **kwargs)
         process_serializer = config.PROCESS[config.INITIAL]['serializer']
         serializer = process_serializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.saveas(request)
             return Response({'serializer': serializer}, status.HTTP_201_CREATED)
         return Response(status.HTTP_400_BAD_REQUEST)
 
@@ -68,8 +69,8 @@ class ProcessUpdate(APIView):
         serializer = process_serializer(activity)
         return Response({'serializer': serializer, 'pk': pk})
 
-    def put(self, request, pk, **kwargs):
-        config = get_app_detail(request, pk, **kwargs)
+    def post(self, request, pk, **kwargs):
+        config = get_app_detail(request, **kwargs)
         process_serializer = config.PROCESS[config.INITIAL]['serializer']
         activity = self.get_object(request, pk, **kwargs)
         serializer = process_serializer(activity, data=request.data)
@@ -82,6 +83,20 @@ class ProcessUpdate(APIView):
         activity = self.get_object(request, pk, **kwargs)
         activity.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ApproveListView(generics.ListAPIView):
+    renderer_classes = [TemplateHTMLRenderer]
+    template_name = 'templates/approval.html'
+
+    def list(self, request, **kwargs):
+        config = get_app_detail(request, **kwargs)
+        serializer = config.PROCESS[config.INITIAL]['serializer']
+        self.queryset = queryset = get_queryset(request, **kwargs)
+        serializer = serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
 
 
 
