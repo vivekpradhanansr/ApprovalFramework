@@ -1,18 +1,17 @@
-import sys
 from django.contrib.auth.models import User, Group
 from django.db.models import (
     Model,
     DateTimeField,
     BooleanField,
     CharField,
-    ForeignKey,
-    IntegerField)
+    ForeignKey)
 from helpers import get_request_params, flow_config
-from constants import TASK_STATUS, PROCESS_STATUS, REQUEST_STATUS
+from constants import TASK_STATUS, REQUEST_STATUS
 
 
 class AbstractEntity(Model):
     """Common attributes for all models"""
+    role = CharField(verbose_name="role", max_length=30, default="submitter")
     creation_date = DateTimeField('Creation Date', auto_now_add=True)
     last_updated = DateTimeField('Last Updated', auto_now=True)
 
@@ -52,12 +51,6 @@ class AbstractProcess(AbstractEntity):
         abstract = True
 
 
-class AbstractTransaction(AbstractEntity):
-    role = CharField(verbose_name="role", max_length=30)
-    class Meta:
-        abstract = True
-
-
 def get_app_detail(request, **kwargs):
     app_title = get_request_params('app_name', request, **kwargs)
     config = flow_config(app_title)
@@ -75,7 +68,7 @@ def can_approve(request, config):
     transition = config.PROCESS[config.INITIAL]['transitions']
     queryset = model.objects.filter(id=0)
     for i in range(20):
-        if not transition:
+        if not transition[0]:
             break
         transition = transition[0]
         method = config.PROCESS[transition]['method']
@@ -85,4 +78,69 @@ def can_approve(request, config):
             queryset = queryset | access
         transition = config.PROCESS[transition]['transitions']
     return queryset
+
+
+def get_role(config, status, current_role):
+    result_role = ""
+    transition = config.PROCESS[config.INITIAL]['transitions']
+    role = config.PROCESS[config.INITIAL]['role']
+    for i in range(20):
+        if current_role == role:
+            if status == "approve":
+                result_role = config.PROCESS[transition[0]]['role']
+            else:
+                result_role = config.PROCESS[transition[1]]['role']
+        if not transition[0]:
+            break
+        role = config.PROCESS[transition[0]]['role']
+        transition = config.PROCESS[transition[0]]['transitions']
+    return result_role
+
+
+def update_process(process, role, status, final):
+    if status == "approve" and final:
+        process.role = role
+        process.process_status = "Completed"
+        process.request_status = "Completed"
+        process.is_active = False
+        process.save()
+    elif status == "approve":
+        process.role = role
+        process.process_status = "Initiated"
+        process.request_status = "In Progress"
+        process.save()
+    else:
+        process.role = role
+        process.save()
+
+
+def is_final(config, current_role):
+    role = get_final_role(config)
+    if role == current_role:
+        flag = True
+    else:
+        flag = False
+    return flag
+
+
+def get_final_role(config):
+    final_role = ""
+    transition = config.PROCESS[config.INITIAL]['transitions']
+    for i in range(20):
+        if not transition[0]:
+            final_role = config.PROCESS[transition[1]]['role']
+            break
+        transition = config.PROCESS[transition[0]]['transitions']
+    return final_role
+
+
+
+
+
+
+
+
+
+
+
 

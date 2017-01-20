@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.renderers import TemplateHTMLRenderer
 
 
-from models import get_app_detail, get_queryset
+from models import get_app_detail, get_queryset, get_role, update_process, is_final
 
 
 def process(request):
@@ -85,17 +85,44 @@ class ProcessUpdate(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ApproveListView(generics.ListAPIView):
-    renderer_classes = [TemplateHTMLRenderer]
+class ApproveListView(APIView):
+    renderer_classes = (TemplateHTMLRenderer,)
     template_name = 'templates/approval.html'
 
-    def list(self, request, **kwargs):
+    def get(self, request, **kwargs):
         config = get_app_detail(request, **kwargs)
-        serializer = config.PROCESS[config.INITIAL]['serializer']
-        self.queryset = queryset = get_queryset(request, **kwargs)
-        serializer = serializer(queryset, many=True)
-        return Response(serializer.data)
+        transition = config.PROCESS[config.INITIAL]['transitions']
+        serializer = config.PROCESS[transition[0]]['serializer']
+        modal = config.PROCESS[config.INITIAL]['model']
+        queryset = get_queryset(request, **kwargs)
+        abstract_fields = ['creation_date', 'last_updated', 'is_active', 'process_status', 'transaction']
+        fields = [f.name for f in modal._meta.get_fields()]
+        fields = filter(lambda x: x not in abstract_fields, fields)
+        fields.sort(reverse=True)
+        serializer = serializer()
+        return Response({'queryset': queryset, 'serializer': serializer, 'fields': fields})
 
+    def post(self, request, **kwargs):
+        pk = request.POST['id']
+        action = request.POST['action']
+        config = get_app_detail(request, **kwargs)
+        transition = config.PROCESS[config.INITIAL]['transitions']
+        serializer = config.PROCESS[transition[0]]['serializer']
+        model = config.PROCESS[config.INITIAL]['model']
+        serialized_data = serializer(data=request.POST)
+        if serialized_data.is_valid():
+            process_request = model.objects.get(pk=pk)
+            role = get_role(config, action, process_request.role)
+            final = is_final(config, process_request.role)
+            update_process(process_request, role, action, final)
+            serialized_data.save_as(role, request, pk, action)
+        modal = config.PROCESS[config.INITIAL]['model']
+        queryset = get_queryset(request, **kwargs)
+        abstract_fields = ['creation_date', 'last_updated', 'is_active', 'process_status', 'transaction']
+        fields = [f.name for f in modal._meta.get_fields()]
+        fields = filter(lambda x: x not in abstract_fields, fields)
+        fields.sort(reverse=True)
+        return Response({'queryset': queryset, 'serializer': serializer, 'fields': fields})
 
 
 

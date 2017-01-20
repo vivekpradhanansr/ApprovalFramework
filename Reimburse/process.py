@@ -7,9 +7,10 @@ PROCESS = {
     'reimburse_raise': {
         'name': 'Raising For Reimbursement',
         'model': Reimburse,
-        'role': 'Submitter',
+        'role': 'submitter',
+        'method': manager,
         'serializer': ReimburseSerializer,
-        'transitions': ['manager_approval']
+        'transitions': ['manager_approval', None]
     },
     'manager_approval': {
         'name': 'Manager Approval',
@@ -17,15 +18,15 @@ PROCESS = {
         'role': 'Reviewer',
         'method': manager,
         'serializer': TransactionSerializer,
-        'transitions': ['finance_approval']
+        'transitions': ['finance_approval', 'reimburse_raise']
     },
     'finance_approval': {
         'name': 'Finance Approval',
         'model': Transaction,
-        'role': 'Reviewer',
+        'role': 'Final',
         'method': manager,
         'serializer': TransactionSerializer,
-        'transitions': None
+        'transitions': [None, 'manager_approval']
     }
 }
 

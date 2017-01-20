@@ -1,4 +1,4 @@
-from CustomApp.models import AbstractProcess, AbstractTransaction
+from CustomApp.models import AbstractProcess, AbstractEntity
 from django.contrib.auth.models import User
 from django.db.models import (
     Model,
@@ -16,7 +16,7 @@ class Reimburse(AbstractProcess):
     amount = IntegerField()
 
 
-class Transaction(AbstractTransaction):
+class Transaction(AbstractEntity):
     reimburse = ForeignKey(Reimburse)
     approved_by = ForeignKey(User)
     status = CharField(choices=PROCESS_STATUS, max_length=20)
